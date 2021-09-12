@@ -1,10 +1,10 @@
 #ifndef UNICODE
 #define UNICODE
 #endif 
-
-#include <windows.h>
+#include "move_logic.h"
 #include <winuser.h>
 #include <windowsx.h>
+#define OFFSET 20
 
 HBITMAP hBitmap = nullptr;
 
@@ -56,38 +56,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
 	return 0;
 }
-int xPos;
-int yPos;
-const int OFFSET = 20;
-void MoveSprite(HWND hwnd, int offsetX, int offsetY) {
-	xPos += offsetX;
-	yPos += offsetY;
-	InvalidateRect(hwnd, NULL, FALSE);
-}
-void SetSpriteX(int x) {
-	xPos = x;
-}
-void SetSpriteY(int y) {
-	yPos = y;
-}
-void CheckWindowBorders(RECT windowRect) {
-	if (windowRect.left > xPos) {
-		SetSpriteX(windowRect.left);
-	}
-	if (windowRect.right <= xPos)
-	{
-		SetSpriteX(windowRect.right);
-	}
-	if (windowRect.bottom <= yPos) {
-		SetSpriteY(windowRect.bottom);
-	}
-	if (windowRect.top > yPos) {
-		SetSpriteY(windowRect.top);
-	}
-}
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-
 	RECT windowRect;
 	switch (uMsg)
 	{
@@ -96,15 +67,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		GetWindowRect(hwnd, &windowRect);
 		SetSpriteX((windowRect.right - windowRect.left) / 2);
 		SetSpriteY((windowRect.bottom - windowRect.top) / 2);
+		xDirection = 1;
+		yDirection = 1;
+		isAutoMoving = false;
+		SetTimer(hwnd, IDT_TIMER1, 2000, (TIMERPROC)NULL);
 		hBitmap = (HBITMAP)LoadImage(GetModuleHandle(NULL), L"../image.bmp", IMAGE_BITMAP, 0, 0,
 			LR_DEFAULTSIZE | LR_LOADFROMFILE);
 	}
 	break;
-	case WM_DESTROY:
+
+	case WM_DESTROY: {
 		DeleteObject(hBitmap);
 		PostQuitMessage(0);
-		return 0;
-		break;
+		return 0; 
+	}
+	break;
 	case WM_PAINT:
 	{
 		PAINTSTRUCT ps;
@@ -132,7 +109,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 	break;
 
-	case WM_KEYDOWN:
+	case WM_KEYDOWN: {
+		ChangeTimers(hwnd);
 		switch (wParam) {
 		case VK_UP:
 			MoveSprite(hwnd, 0, -OFFSET);
@@ -147,24 +125,47 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			MoveSprite(hwnd, OFFSET, 0);
 			break;
 		}
-		break;
+	}
+	break;
 	case WM_MOUSEMOVE:
 	{
-		xPos = GET_X_LPARAM(lParam);
-		yPos = GET_Y_LPARAM(lParam);
+		ChangeTimers(hwnd);
+		SetSpriteX(GET_X_LPARAM(lParam));
+		SetSpriteY(GET_Y_LPARAM(lParam));
 		InvalidateRect(hwnd, NULL, FALSE);
 	}
+	break;
 	case WM_MOUSEWHEEL: {
-		int direction = GET_WHEEL_DELTA_WPARAM(wParam) < 0 ? 1 : -1;
+		ChangeTimers(hwnd);
+		int wheelDirection = GET_WHEEL_DELTA_WPARAM(wParam) < 0 ? 1 : -1;
 		if (GET_KEYSTATE_WPARAM(wParam) == MK_SHIFT)
 		{
-			MoveSprite(hwnd, OFFSET * direction, 0);
+			MoveSprite(hwnd, OFFSET * wheelDirection, 0);
 		}
 		else
 		{
-			MoveSprite(hwnd, 0, OFFSET * direction);
+			MoveSprite(hwnd, 0, OFFSET * wheelDirection);
 		}
 	}
+	break;
+	
+	case WM_TIMER: 
+	{
+		switch (wParam)
+		{
+		case IDT_TIMER1: 
+			if (!isAutoMoving) {
+				isAutoMoving = true;
+				SetTimer(hwnd, IDT_TIMER2, 50, (TIMERPROC)NULL);
+				KillTimer(hwnd, IDT_TIMER1);
+			}
+		break;
+		case IDT_TIMER2: 
+			MoveSprite(hwnd, OFFSET*xDirection, OFFSET*yDirection);
+		break;
+		}
+	}
+	break;
 	default:
 		return DefWindowProc(hwnd, uMsg, wParam, lParam);
 	}
