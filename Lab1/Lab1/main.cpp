@@ -130,9 +130,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_MOUSEMOVE:
 	{
 		ChangeTimers(hwnd);
-		SetSpriteX(GET_X_LPARAM(lParam));
-		SetSpriteY(GET_Y_LPARAM(lParam));
-		InvalidateRect(hwnd, NULL, FALSE);
+		MoveSprite(hwnd, GET_X_LPARAM(lParam) - xPos, GET_Y_LPARAM(lParam) - yPos);
 	}
 	break;
 	case WM_MOUSEWHEEL: {
